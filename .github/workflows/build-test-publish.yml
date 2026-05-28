@@ -58,6 +58,7 @@ jobs:
       run: |
         kind load image-archive ${{ runner.temp }}/operator.tar --name cluster-operator-testing
         kustomize build config/namespace/base | kubectl apply -f -
+        make cert-manager
         kustomize build config/default | bin/ytt -f- -f config/ytt/overlay-manager-image.yaml --data-value operator_image="${IMG}" -f config/ytt/never_pull.yaml | kubectl apply -f -
 
     - name: Test kubectl plugin
@@ -313,6 +314,7 @@ jobs:
     - name: Install Operator build
       run: |
         kind load image-archive ${{ runner.temp }}/operator-image/operator.tar --name system-testing
+        make cert-manager
         ytt -f tmp/cluster-operator.yml -f config/ytt/never_pull.yaml | kubectl apply -f-
         kubectl --namespace=rabbitmq-system wait --for=condition=Available deployment/rabbitmq-cluster-operator
 
@@ -324,7 +326,6 @@ jobs:
       # 'make deploy-kind' builds the image locally. We should avoid using that target, because we have already built
       # the image in a previous job
       run: |
-        make cert-manager
         SUPPORT_VOLUME_EXPANSION=false make system-tests
 
     - name: Dry-run example YAMLs
@@ -383,6 +384,7 @@ jobs:
     - name: Install Operator build
       run: |
         kind load image-archive ${{ runner.temp }}/operator-image/operator.tar --name system-testing-oldest-k8s
+        make cert-manager
         ytt -f tmp/cluster-operator.yml -f config/ytt/never_pull.yaml | kubectl apply -f-
         kubectl --namespace=rabbitmq-system wait --for=condition=Available deployment/rabbitmq-cluster-operator
 
@@ -393,7 +395,6 @@ jobs:
         RABBITMQ_SERVICE_TYPE: NodePort
       # make system-tests will install required tools e.g. ginkgo
       run: |
-        make cert-manager
         SUPPORT_VOLUME_EXPANSION=false make system-tests
 
   examples_matrix:
@@ -455,6 +456,7 @@ jobs:
     - name: Install Operator build
       run: |
         kind load image-archive ${{ runner.temp }}/operator-image/operator.tar --name examples-testing
+        make cert-manager
         ytt -f tmp/cluster-operator.yml -f config/ytt/never_pull.yaml | kubectl apply -f-
         kubectl --namespace=rabbitmq-system wait --for=condition=Available deployment/rabbitmq-cluster-operator
 
@@ -465,7 +467,6 @@ jobs:
         # Exit early if this example is to be skipped in CI
         [[ -e "$example"/.ci-skip ]] && exit 0
 
-        make cert-manager
         printf "apiVersion: cert-manager.io/v1\nkind: ClusterIssuer\nmetadata:\n  name: selfsigned-issuer\nspec:\n  selfSigned: {}\n" | kubectl apply -f -
 
         pushd "$example"
